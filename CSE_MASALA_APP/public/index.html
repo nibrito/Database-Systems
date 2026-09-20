@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSE Masala | Restaurant Management Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    :root {
+      --primary: #c0392b;
+      --secondary: #2c3e50;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --info: #0284c7;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg); color: var(--text); }
+    body { display: flex; }
+
+    /* Login Screen Overlay */
+    #login-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); z-index: 9999;
+      display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+    }
+    .login-card {
+      background: var(--card); padding: 35px; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .login-card h2 { margin-bottom: 8px; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+    .login-card p { font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+    .btn-login { width: 100%; padding: 12px; background: var(--primary); color: #fff; font-weight: bold; border: none; border-radius: var(--radius); cursor: pointer; }
+
+    /* Generic Modal Windows */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 10000;
+      display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px);
+    }
+    .status-card {
+      background: var(--card); padding: 30px; border-radius: 12px; width: 380px; text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25); animation: popIn 0.2s ease-out;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-icon {
+      width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; font-size: 1.8rem; margin: 0 auto 15px;
+    }
+    .icon-success { background: #dcfce7; color: var(--success); }
+    .icon-cancel { background: #fee2e2; color: var(--danger); }
+    .icon-confirm { background: #fef3c7; color: var(--warning); }
+    .icon-restock { background: #e0f2fe; color: var(--info); }
+
+    .status-card h3 { font-size: 1.25rem; color: var(--secondary); margin-bottom: 8px; }
+    .status-card p { font-size: 0.88rem; color: var(--muted); margin-bottom: 18px; }
+    .order-summary-box {
+      background: #f8fafc; border: 1px dashed var(--border); border-radius: var(--radius);
+      padding: 12px; margin-bottom: 20px; font-size: 0.85rem; text-align: left;
+    }
+    .order-summary-box div { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    
+    .btn-close-modal {
+      width: 100%; padding: 10px; background: var(--secondary); color: white; border: none;
+      border-radius: var(--radius); font-weight: bold; cursor: pointer;
+    }
+    .btn-close-modal:hover { background: #1e293b; }
+
+    .modal-btn-group { display: flex; gap: 10px; }
+    .btn-modal-confirm { flex: 1; padding: 10px; background: var(--danger); color: white; border: none; border-radius: var(--radius); font-weight: bold; cursor: pointer; }
+    .btn-modal-confirm:hover { opacity: 0.9; }
+    .btn-modal-primary { flex: 1; padding: 10px; background: var(--info); color: white; border: none; border-radius: var(--radius); font-weight: bold; cursor: pointer; }
+    .btn-modal-primary:hover { opacity: 0.9; }
+    .btn-modal-cancel { flex: 1; padding: 10px; background: #e2e8f0; color: var(--text); border: none; border-radius: var(--radius); font-weight: bold; cursor: pointer; }
+    .btn-modal-cancel:hover { background: #cbd5e1; }
+
+    /* Main Layout */
+    .sidebar { width: 260px; height: 100vh; background: var(--secondary); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; }
+    .brand { padding: 20px; font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.15); }
+    .brand i { color: #e74c3c; }
+    .nav-links { list-style: none; padding: 15px 0; flex: 1; overflow-y: auto; }
+    .nav-links li a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: #94a3b8; text-decoration: none; cursor: pointer; transition: 0.2s; }
+    .nav-links li.active a, .nav-links li a:hover { background: rgba(255,255,255,0.08); color: #fff; border-left: 4px solid var(--primary); }
+    .user-info { padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+
+    .main { flex: 1; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { height: 60px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 25px; flex-shrink: 0; }
+    .content { flex: 1; padding: 20px 25px; overflow: hidden; display: flex; flex-direction: column; }
+    
+    .tab { display: none; height: 100%; width: 100%; overflow-y: auto; }
+    .tab.active { display: flex; flex-direction: column; }
+
+    /* KPIs */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; flex-shrink: 0; }
+    .stat-card { background: var(--card); padding: 18px; border-radius: var(--radius); border: 1px solid var(--border); }
+    .stat-card h4 { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+    .stat-card p { font-size: 1.4rem; font-weight: bold; color: var(--secondary); }
+
+    .panel { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden; display: flex; flex-direction: column; }
+    .panel-header { padding: 14px 20px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .table-container { flex: 1; overflow-y: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
+    table th, table td { padding: 10px 18px; border-bottom: 1px solid var(--border); }
+    table th { background: #f8fafc; color: var(--muted); font-weight: 600; position: sticky; top: 0; z-index: 10; }
+    table tr:hover { background: #f1f5f9; }
+
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+    .badge-success { background: #dcfce7; color: var(--success); }
+    .badge-danger { background: #fee2e2; color: var(--danger); }
+    .badge-warning { background: #fef3c7; color: var(--warning); }
+    .badge-info { background: #e0f2fe; color: var(--info); }
+
+    /* POS System */
+    .pos-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; height: 100%; overflow: hidden; }
+    .pos-menu-scrollable { height: 100%; overflow-y: auto; padding-right: 12px; }
+    .category-section { margin-bottom: 25px; }
+    .category-title {
+      font-size: 1rem; font-weight: bold; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 2px solid var(--border);
+      color: var(--secondary); position: sticky; top: 0; background: var(--bg); z-index: 5;
+    }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .food-card { background: var(--card); padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: 0.15s; }
+    .food-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .food-card h5 { font-size: 0.9rem; margin-bottom: 4px; }
+    .food-card .price { font-weight: bold; color: var(--primary); font-size: 0.95rem; }
+
+    /* Order Cart Box */
+    .cart-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .cart-inputs { padding: 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; background: #fafbfc; flex-shrink: 0; }
+    .cart-inputs input, .cart-inputs select { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; }
+    .cart-items-scrollable { flex: 1; padding: 14px; overflow-y: auto; min-height: 150px; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.85rem; border-bottom: 1px dashed var(--border); padding-bottom: 8px; }
+    .cart-actions { display: flex; align-items: center; gap: 6px; }
+    .btn-qty { width: 22px; height: 22px; border: 1px solid var(--border); background: #f1f5f9; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-del { color: var(--danger); background: none; border: none; cursor: pointer; margin-left: 6px; padding: 4px; }
+    .cart-footer { padding: 14px; border-top: 1px solid var(--border); background: #f8fafc; flex-shrink: 0; }
+    .btn-submit { width: 100%; padding: 10px; background: var(--success); color: white; border: none; border-radius: var(--radius); font-weight: bold; cursor: pointer; }
+
+    .filter-ctrl { padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. LOGIN MODAL -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <h2><i class="fa-solid fa-lock"></i> Manager Login</h2>
+      <p>Log in as one of the 10 branch managers:</p>
+      
+      <div class="form-group">
+        <label>Select Branch Manager Profile</label>
+        <select id="quick-manager-select" onchange="autoFillLogin()">
+          <option value="">-- Choose Branch Manager --</option>
+          <option value="sadia.molla|Sadia#8492">Gulshan - Sadia Molla</option>
+          <option value="jamal.islam|Jamal#7293">Banani - Jamal Islam</option>
+          <option value="tania.ahmed|Tania#7839">Dhanmondi - Tania Ahmed</option>
+          <option value="rashed.rahman|Rashed#7849">Uttara - Rashed Rahman</option>
+          <option value="hridoy.ahmed|Hridoy#7839">Mirpur - Hridoy Ahmed</option>
+          <option value="rakib.hossain|Rakib#7849">Mohammadpur - Rakib Hossain</option>
+          <option value="fahim.kazi|Fahim#7839">Bashundhara - Fahim Kazi</option>
+          <option value="kamal.hossain|Kamal#7849">Motijheel - Kamal Hossain</option>
+          <option value="tania.siddique|Tania#7839">Old Dhaka - Tania Siddique</option>
+          <option value="karim.ahmed|Karim#7849">Baridhara - Karim Ahmed</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="e.g. sadia.molla" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Password" />
+      </div>
+      <button class="btn-login" onclick="handleLogin()">Sign In</button>
+    </div>
+  </div>
+
+  <!-- 2. ORDER PLACED SUCCESS MODAL -->
+  <div id="success-modal-overlay" class="modal-overlay">
+    <div class="status-card">
+      <div class="modal-icon icon-success"><i class="fa-solid fa-check"></i></div>
+      <h3>Order Placed Successfully!</h3>
+      <p>The order has been registered in SQL Server.</p>
+      
+      <div class="order-summary-box">
+        <div><span>Order ID:</span><strong id="modal-order-id">#0</strong></div>
+        <div><span>Customer:</span><span id="modal-cust-name">Walk-in</span></div>
+        <div><span>Total Amount:</span><strong id="modal-order-total" style="color:var(--success)">৳ 0.00</strong></div>
+      </div>
+
+      <button class="btn-close-modal" onclick="closeModal('success-modal-overlay')">Done / Next Order</button>
+    </div>
+  </div>
+
+  <!-- 3. CANCEL CONFIRMATION MODAL -->
+  <div id="cancel-confirm-overlay" class="modal-overlay">
+    <div class="status-card">
+      <div class="modal-icon icon-confirm"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <h3>Confirm Cancellation</h3>
+      <p>Are you sure you want to cancel this order?</p>
+      
+      <div class="order-summary-box">
+        <div><span>Order ID:</span><strong id="confirm-cancel-order-id">#0</strong></div>
+        <div><span>Inventory:</span><span style="color:var(--info);">Ingredients will be restored</span></div>
+      </div>
+
+      <div class="modal-btn-group">
+        <button class="btn-modal-cancel" onclick="closeModal('cancel-confirm-overlay')">No, Keep Order</button>
+        <button class="btn-modal-confirm" onclick="proceedCancelOrder()">Yes, Cancel Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. ORDER CANCELLED SUCCESS MODAL -->
+  <div id="cancel-modal-overlay" class="modal-overlay">
+    <div class="status-card">
+      <div class="modal-icon icon-cancel"><i class="fa-solid fa-ban"></i></div>
+      <h3 style="color: var(--danger);">Order Cancelled Successfully</h3>
+      <p>The order has been marked as cancelled.</p>
+      
+      <div class="order-summary-box">
+        <div><span>Cancelled Order ID:</span><strong id="modal-cancel-order-id">#0</strong></div>
+        <div><span>Inventory Restock:</span><span style="color: var(--success); font-weight: bold;"><i class="fa-solid fa-rotate-left"></i> Restocked</span></div>
+        <div><span>Status:</span><span class="badge badge-danger">Cancelled</span></div>
+      </div>
+
+      <button class="btn-close-modal" onclick="closeModal('cancel-modal-overlay')">Close</button>
+    </div>
+  </div>
+
+  <!-- 5. RESTOCK INPUT MODAL -->
+  <div id="restock-input-overlay" class="modal-overlay">
+    <div class="status-card">
+      <div class="modal-icon icon-restock"><i class="fa-solid fa-boxes-packing"></i></div>
+      <h3>Restock Ingredient</h3>
+      <p>Add fresh inventory stock to this branch.</p>
+      
+      <div class="order-summary-box">
+        <div><span>Ingredient:</span><strong id="restock-item-name">-</strong></div>
+        <div><span>Current Stock:</span><span id="restock-curr-stock">0.00</span></div>
+        <div><span>Reorder Level:</span><span id="restock-reorder-level">0.00</span></div>
+      </div>
+
+      <div class="form-group" style="text-align: left;">
+        <label>Quantity to Add (<span id="restock-unit-label">kg</span>):</label>
+        <input type="number" step="0.1" min="0.1" id="restock-qty-input" placeholder="e.g. 20.0" />
+      </div>
+
+      <div class="modal-btn-group">
+        <button class="btn-modal-cancel" onclick="closeModal('restock-input-overlay')">Cancel</button>
+        <button class="btn-modal-primary" onclick="proceedRestock()">Confirm Restock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. RESTOCK SUCCESS MODAL -->
+  <div id="restock-success-overlay" class="modal-overlay">
+    <div class="status-card">
+      <div class="modal-icon icon-success"><i class="fa-solid fa-check"></i></div>
+      <h3>Restocked Successfully!</h3>
+      <p>The ingredient stock has been increased in SQL Server.</p>
+      
+      <div class="order-summary-box">
+        <div><span>Ingredient:</span><strong id="restock-success-name">-</strong></div>
+        <div><span>Quantity Added:</span><strong id="restock-success-qty" style="color:var(--success)">+0.00</strong></div>
+      </div>
+
+      <button class="btn-close-modal" onclick="closeModal('restock-success-overlay')">Done</button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand"><i class="fa-solid fa-pepper-hot"></i> CSE Masala</div>
+    <ul class="nav-links">
+      <li class="active" onclick="showTab('dashboard', this)"><a><i class="fa-solid fa-chart-pie"></i> Branch Dashboard</a></li>
+      <li onclick="showTab('pos', this)"><a><i class="fa-solid fa-calculator"></i> Take Order (POS)</a></li>
+      <li onclick="showTab('orders', this)"><a><i class="fa-solid fa-file-invoice-dollar"></i> Live Orders</a></li>
+      <li onclick="showTab('inventory', this)"><a><i class="fa-solid fa-warehouse"></i> Inventory Stock</a></li>
+      <li onclick="showTab('employees', this)"><a><i class="fa-solid fa-users"></i> Staff Directory</a></li>
+      <li onclick="showTab('menu', this)"><a><i class="fa-solid fa-book-open"></i> Full Menu</a></li>
+    </ul>
+    <div class="user-info">
+      <div>
+        <strong id="logged-user-name">Manager</strong><br/>
+        <span id="logged-user-branch" style="color:#cbd5e1; font-size:0.75rem;">Branch</span>
+      </div>
+      <button onclick="logout()" style="background:none; border:none; color:#ef4444; cursor:pointer;" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEW -->
+  <div class="main">
+    <header>
+      <h3 id="tab-heading">Branch Dashboard Analytics</h3>
+      <span class="badge badge-success" id="active-branch-badge"><i class="fa-solid fa-location-dot"></i> Logged in</span>
+    </header>
+
+    <div class="content">
+
+      <!-- DASHBOARD (BRANCH-SPECIFIC) -->
+      <section id="dashboard" class="tab active">
+        <div class="stats-grid">
+          <div class="stat-card"><h4>Branch Orders</h4><p id="kpi-orders">0</p></div>
+          <div class="stat-card"><h4>Branch Revenue</h4><p id="kpi-revenue" style="color:var(--success)">৳ 0.00</p></div>
+          <div class="stat-card"><h4>Active Staff</h4><p id="kpi-employees">0</p></div>
+          <div class="stat-card"><h4>Low Stock Warnings</h4><p id="kpi-stock" style="color:var(--danger)">0</p></div>
+        </div>
+        <div class="panel" style="flex: 1;">
+          <div class="panel-header">Recent Orders for this Branch</div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>#</th><th>Customer</th><th>Waiter</th><th>Total</th><th>Status</th><th>Payment</th></tr></thead>
+              <tbody id="dash-orders-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- POS TAKE ORDER -->
+      <section id="pos" class="tab">
+        <div class="pos-container">
+          <!-- Food Catalog (Categorized & Scrollable) -->
+          <div class="pos-menu-scrollable" id="pos-menu-by-category"></div>
+
+          <!-- Order Ticket -->
+          <div class="cart-box">
+            <div class="panel-header">New Order Ticket</div>
+            
+            <div class="cart-inputs">
+              <label style="font-size:0.75rem; font-weight:bold;">Serving Branch</label>
+              <select id="order-branch" onchange="loadWaitersForBranch()"></select>
+
+              <label style="font-size:0.75rem; font-weight:bold;">Assigned Waiter</label>
+              <select id="order-employee"></select>
+
+              <label style="font-size:0.75rem; font-weight:bold;">Customer Info</label>
+              <input type="text" id="cust-name" placeholder="Customer Name" />
+              <input type="text" id="cust-phone" placeholder="Customer Phone (e.g. 017...)" />
+              <input type="text" id="cust-address" placeholder="Address (Optional)" />
+
+              <label style="font-size:0.75rem; font-weight:bold;">Payment Method</label>
+              <select id="order-payment-method">
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+                <option value="Mobile Banking">Mobile Banking</option>
+              </select>
+            </div>
+
+            <!-- Scrollable Cart Items -->
+            <div class="cart-items-scrollable" id="cart-items-container">
+              <div style="text-align: center; color: var(--muted); margin-top: 30px;">Select items from categories</div>
+            </div>
+
+            <div class="cart-footer">
+              <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:10px;">
+                <span>Total:</span>
+                <span id="cart-total">৳ 0.00</span>
+              </div>
+              <button class="btn-submit" onclick="submitOrder()"><i class="fa-solid fa-check"></i> Place & Process Order</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ORDERS LIST (WITH CANCEL ACTION) -->
+      <section id="orders" class="tab">
+        <div class="panel" style="height: 100%;">
+          <div class="panel-header">Branch Orders History</div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Branch</th>
+                  <th>Waiter</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVENTORY (WITH RESTOCK CONTROLS) -->
+      <section id="inventory" class="tab">
+        <div class="panel" style="height: 100%;">
+          <div class="panel-header">
+            <span>Branch Inventory & Stock Monitor</span>
+            <select id="inv-branch-select" class="filter-ctrl" onchange="loadInventory()"></select>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Ingredient</th>
+                  <th>In Stock</th>
+                  <th>Reorder Level</th>
+                  <th>Unit</th>
+                  <th>Status</th>
+                  <th>Stock Alert</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- EMPLOYEES -->
+      <section id="employees" class="tab">
+        <div class="panel" style="height: 100%;">
+          <div class="panel-header">Staff List</div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>Branch</th><th>Position</th><th>Salary</th><th>Phone</th><th>Status</th></tr></thead>
+              <tbody id="employee-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- FULL MENU (DEDUPLICATED) -->
+      <section id="menu" class="tab">
+        <div class="panel" style="height: 100%;">
+          <div class="panel-header">Catalog Menu</div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>ID</th><th>Dish Name</th><th>Category</th><th>Description</th><th>Price</th><th>Availability</th></tr></thead>
+              <tbody id="menu-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3000/api';
+    let currentUser = null;
+    let foodList = [];
+    let cart = [];
+    let pendingCancelOrderId = null;
+    let activeRestockItem = null;
+
+    // --- LOGIN LOGIC ---
+    function autoFillLogin() {
+      const val = document.getElementById('quick-manager-select').value;
+      if (val) {
+        const [u, p] = val.split('|');
+        document.getElementById('login-username').value = u;
+        document.getElementById('login-password').value = p;
+      }
+    }
+
+    async function handleLogin() {
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+
+      if (!username || !password) return alert('Please enter username and password');
+
+      const res = await fetch(`${API}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data.user;
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('logged-user-name').innerText = currentUser.employee_name;
+        document.getElementById('logged-user-branch').innerText = currentUser.branch_name;
+        document.getElementById('active-branch-badge').innerText = `Active: ${currentUser.branch_name}`;
+        
+        await init();
+      } else {
+        alert(data.message || 'Login failed');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('login-overlay').style.display = 'flex';
+      cart = [];
+      renderCart();
+    }
+
+    // --- TAB SWITCHING ---
+    function showTab(tabId, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-links li').forEach(l => l.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      el.classList.add('active');
+      document.getElementById('tab-heading').innerText = el.innerText.trim();
+    }
+
+    // --- INITIAL DATA LOAD ---
+    async function init() {
+      await loadBranches();
+      await Promise.all([
+        loadAnalytics(),
+        loadCategorizedFoodMenu(),
+        loadOrders(),
+        loadInventory(),
+        loadEmployees()
+      ]);
+    }
+
+    // --- DEDUPLICATED BRANCH LOADER ---
+    async function loadBranches() {
+      const res = await fetch(`${API}/branches`);
+      const branches = await res.json();
+      const posSelect = document.getElementById('order-branch');
+      const invSelect = document.getElementById('inv-branch-select');
+
+      posSelect.innerHTML = '';
+      invSelect.innerHTML = '';
+
+      const seenNames = new Set();
+      const uniqueBranches = [];
+
+      branches.forEach(b => {
+        const cleanName = b.branch_name.trim();
+        if (!seenNames.has(cleanName)) {
+          seenNames.add(cleanName);
+          uniqueBranches.push({ branch_id: b.branch_id, branch_name: cleanName });
+        }
+      });
+
+      uniqueBranches.forEach(b => {
+        const isSelected = currentUser && currentUser.branch_id === b.branch_id ? 'selected' : '';
+        posSelect.innerHTML += `<option value="${b.branch_id}" ${isSelected}>${b.branch_name}</option>`;
+        invSelect.innerHTML += `<option value="${b.branch_id}" ${isSelected}>${b.branch_name}</option>`;
+      });
+
+      await loadWaitersForBranch();
+    }
+
+    // --- LOAD WAITERS FILTERED STRICTLY BY SELECTED BRANCH ---
+    async function loadWaitersForBranch() {
+      const branchId = document.getElementById('order-branch').value || (currentUser ? currentUser.branch_id : 1);
+      const res = await fetch(`${API}/waiters?branch_id=${branchId}`);
+      const waiters = await res.json();
+      const posEmpSelect = document.getElementById('order-employee');
+      
+      posEmpSelect.innerHTML = '';
+      if (!waiters || waiters.length === 0) {
+        posEmpSelect.innerHTML = '<option value="">No Active Waiters In This Branch</option>';
+        return;
+      }
+      waiters.forEach(w => {
+        posEmpSelect.innerHTML += `<option value="${w.employee_id}">${w.name} (Waiter - ${w.phone})</option>`;
+      });
+    }
+
+    // --- BRANCH SPECIFIC ANALYTICS ---
+    async function loadAnalytics() {
+      const branchId = currentUser ? currentUser.branch_id : 1;
+      const res = await fetch(`${API}/analytics?branch_id=${branchId}`);
+      const data = await res.json();
+      document.getElementById('kpi-orders').innerText = data.total_orders;
+      document.getElementById('kpi-revenue').innerText = `৳ ${Number(data.branch_revenue).toFixed(2)}`;
+      document.getElementById('kpi-employees').innerText = data.active_employees;
+      document.getElementById('kpi-stock').innerText = data.low_stock_alerts;
+    }
+
+    // --- DEDUPLICATED CATEGORIZED MENU & FULL CATALOG ---
+    async function loadCategorizedFoodMenu() {
+      const res = await fetch(`${API}/food`);
+      const rawFoodList = await res.json();
+
+      const uniqueFoodMap = new Map();
+      rawFoodList.forEach(item => {
+        const key = item.food_name.trim().toLowerCase();
+        if (!uniqueFoodMap.has(key)) {
+          uniqueFoodMap.set(key, item);
+        }
+      });
+      foodList = Array.from(uniqueFoodMap.values());
+
+      const grouped = {};
+      foodList.forEach(f => {
+        if (!grouped[f.category_name]) grouped[f.category_name] = [];
+        grouped[f.category_name].push(f);
+      });
+
+      const container = document.getElementById('pos-menu-by-category');
+      container.innerHTML = '';
+
+      for (const [catName, items] of Object.entries(grouped)) {
+        let catHtml = `
+          <div class="category-section">
+            <div class="category-title"><i class="fa-solid fa-utensils"></i> ${catName}</div>
+            <div class="menu-grid">
+        `;
+        items.forEach(f => {
+          catHtml += `
+            <div class="food-card" onclick="addToCart(${f.food_id})">
+              <h5>${f.food_name}</h5>
+              <div style="font-size:0.75rem; color:var(--muted);">${f.description || ''}</div>
+              <div class="price">৳ ${Number(f.price).toFixed(2)}</div>
+            </div>
+          `;
+        });
+        catHtml += `</div></div>`;
+        container.innerHTML += catHtml;
+      }
+
+      const menuTable = document.getElementById('menu-table-body');
+      menuTable.innerHTML = '';
+      foodList.forEach(f => {
+        menuTable.innerHTML += `
+          <tr>
+            <td>#${f.food_id}</td>
+            <td><strong>${f.food_name}</strong></td>
+            <td>${f.category_name}</td>
+            <td>${f.description || '-'}</td>
+            <td>৳ ${Number(f.price).toFixed(2)}</td>
+            <td><span class="badge ${f.availability ? 'badge-success' : 'badge-danger'}">${f.availability ? 'Available' : 'Out of stock'}</span></td>
+          </tr>
+        `;
+      });
+    }
+
+    // --- CART OPERATIONS ---
+    function addToCart(foodId) {
+      const item = foodList.find(f => f.food_id === foodId);
+      const existing = cart.find(c => c.food_id === foodId);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({ food_id: item.food_id, food_name: item.food_name, unit_price: item.price, quantity: 1 });
+      }
+      renderCart();
+    }
+
+    function changeQty(foodId, delta) {
+      const item = cart.find(c => c.food_id === foodId);
+      if (item) {
+        item.quantity += delta;
+        if (item.quantity <= 0) {
+          removeFromCart(foodId);
+          return;
+        }
+      }
+      renderCart();
+    }
+
+    function removeFromCart(foodId) {
+      cart = cart.filter(c => c.food_id !== foodId);
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items-container');
+      const totalEl = document.getElementById('cart-total');
+
+      if (cart.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:30px;">Select items from categories</div>';
+        totalEl.innerText = '৳ 0.00';
+        return;
+      }
+
+      container.innerHTML = '';
+      let total = 0;
+      cart.forEach(c => {
+        const itemTotal = c.quantity * c.unit_price;
+        total += itemTotal;
+        container.innerHTML += `
+          <div class="cart-item">
+            <div>
+              <strong>${c.food_name}</strong><br/>
+              <span style="color:var(--muted)">৳ ${c.unit_price.toFixed(2)}</span>
+            </div>
+            <div class="cart-actions">
+              <button class="btn-qty" onclick="changeQty(${c.food_id}, -1)">-</button>
+              <span style="font-weight:bold; min-width:18px; text-align:center;">${c.quantity}</span>
+              <button class="btn-qty" onclick="changeQty(${c.food_id}, 1)">+</button>
+              <button class="btn-del" onclick="removeFromCart(${c.food_id})" title="Remove item"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+        `;
+      });
+      totalEl.innerText = `৳ ${total.toFixed(2)}`;
+    }
+
+    // --- ORDER SUBMISSION & POPUP WINDOW ---
+    async function submitOrder() {
+      if (cart.length === 0) return alert('Cart is empty!');
+      const waiterId = document.getElementById('order-employee').value;
+      if (!waiterId) return alert('Please select an active waiter for this branch');
+
+      const custName = document.getElementById('cust-name').value.trim();
+      const custPhone = document.getElementById('cust-phone').value.trim();
+      const custAddress = document.getElementById('cust-address').value.trim();
+
+      const orderPayload = {
+        branch_id: parseInt(document.getElementById('order-branch').value),
+        employee_id: parseInt(waiterId),
+        payment_method: document.getElementById('order-payment-method').value,
+        customer: custName ? { name: custName, phone: custPhone, address: custAddress } : null,
+        items: cart
+      };
+
+      const res = await fetch(`${API}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('modal-order-id').innerText = `#${data.order_id}`;
+        document.getElementById('modal-cust-name').innerText = custName || 'Walk-in Customer';
+        document.getElementById('modal-order-total').innerText = `৳ ${Number(data.total).toFixed(2)}`;
+        document.getElementById('success-modal-overlay').style.display = 'flex';
+
+        cart = [];
+        document.getElementById('cust-name').value = '';
+        document.getElementById('cust-phone').value = '';
+        document.getElementById('cust-address').value = '';
+        renderCart();
+        loadOrders();
+        loadAnalytics();
+        loadInventory();
+      } else {
+        alert('Order Rejected: ' + data.error);
+      }
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    // --- LOAD ORDERS WITH CANCEL ACTION ---
+    async function loadOrders() {
+      const branchId = currentUser ? currentUser.branch_id : null;
+      const res = await fetch(`${API}/orders${branchId ? `?branch_id=${branchId}` : ''}`);
+      const orders = await res.json();
+      const tbody = document.getElementById('orders-table-body');
+      const dashTbody = document.getElementById('dash-orders-body');
+
+      tbody.innerHTML = '';
+      dashTbody.innerHTML = '';
+
+      orders.forEach((o, index) => {
+        const badge = o.order_status === 'completed' ? 'badge-success' : o.order_status === 'pending' ? 'badge-warning' : 'badge-danger';
+        
+        const actionBtn = o.order_status !== 'cancelled'
+          ? `<button onclick="promptCancelOrder(${o.order_id})" style="padding:4px 8px; font-size:0.75rem; background:var(--danger); color:#fff; border:none; border-radius:4px; cursor:pointer;" title="Cancel Order"><i class="fa-solid fa-xmark"></i> Cancel</button>`
+          : `<span style="color:var(--muted); font-size:0.8rem;">Cancelled</span>`;
+
+        const row = `
+          <tr>
+            <td><strong>#${o.order_id}</strong></td>
+            <td>${o.customer_name}</td>
+            <td>${o.customer_phone || 'N/A'}</td>
+            <td>${o.branch_name}</td>
+            <td>${o.server_name}</td>
+            <td>৳ ${Number(o.total_amount).toFixed(2)}</td>
+            <td><span class="badge ${badge}">${o.order_status}</span></td>
+            <td>${o.payment_method || 'N/A'}</td>
+            <td>${actionBtn}</td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+        if (index < 5) dashTbody.innerHTML += row;
+      });
+    }
+
+    // --- PROMPT CANCELLATION MODAL ---
+    function promptCancelOrder(orderId) {
+      pendingCancelOrderId = orderId;
+      document.getElementById('confirm-cancel-order-id').innerText = `#${orderId}`;
+      document.getElementById('cancel-confirm-overlay').style.display = 'flex';
+    }
+
+    // --- PROCEED WITH CANCELLATION ---
+    async function proceedCancelOrder() {
+      if (!pendingCancelOrderId) return;
+      const orderId = pendingCancelOrderId;
+      closeModal('cancel-confirm-overlay');
+
+      const res = await fetch(`${API}/orders/${orderId}/cancel`, {
+        method: 'PUT'
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('modal-cancel-order-id').innerText = `#${orderId}`;
+        document.getElementById('cancel-modal-overlay').style.display = 'flex';
+
+        loadOrders();
+        loadAnalytics();
+        loadInventory();
+      } else {
+        alert('Error: ' + data.message);
+      }
+      pendingCancelOrderId = null;
+    }
+
+    // --- DEDUPLICATED INVENTORY LOADER & RESTOCK ACTION ---
+    async function loadInventory() {
+      const branchId = document.getElementById('inv-branch-select').value || (currentUser ? currentUser.branch_id : 1);
+      const res = await fetch(`${API}/inventory?branch_id=${branchId}`);
+      const rawInv = await res.json();
+      const tbody = document.getElementById('inventory-table-body');
+      tbody.innerHTML = '';
+
+      const uniqueMap = new Map();
+      rawInv.forEach(item => {
+        if (!uniqueMap.has(item.ingredient_id)) {
+          uniqueMap.set(item.ingredient_id, item);
+        }
+      });
+      const inv = Array.from(uniqueMap.values());
+
+      if (inv.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted)">No inventory records found for this branch</td></tr>';
+        return;
+      }
+
+      inv.forEach(i => {
+        const itemJson = JSON.stringify(i).replace(/"/g, '&quot;');
+        tbody.innerHTML += `
+          <tr>
+            <td>#${i.ingredient_id}</td>
+            <td><strong>${i.ingredient_name}</strong></td>
+            <td>${Number(i.quantity_in_stock).toFixed(2)}</td>
+            <td>${Number(i.reorder_level).toFixed(2)}</td>
+            <td>${i.unit}</td>
+            <td><span class="badge ${i.ingredient_status === 'Active' ? 'badge-success' : 'badge-danger'}">${i.ingredient_status}</span></td>
+            <td><span class="badge ${i.is_low_stock ? 'badge-danger' : 'badge-success'}">${i.is_low_stock ? 'Low Stock' : 'Optimal'}</span></td>
+            <td>
+              <button onclick="promptRestock(${itemJson})" style="padding:4px 10px; font-size:0.75rem; background:var(--info); color:#fff; border:none; border-radius:4px; cursor:pointer;" title="Restock Ingredient">
+                <i class="fa-solid fa-plus"></i> Restock
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    // --- RESTOCK MODAL HANDLERS ---
+    function promptRestock(item) {
+      activeRestockItem = item;
+      document.getElementById('restock-item-name').innerText = item.ingredient_name;
+      document.getElementById('restock-curr-stock').innerText = `${Number(item.quantity_in_stock).toFixed(2)} ${item.unit}`;
+      document.getElementById('restock-reorder-level').innerText = `${Number(item.reorder_level).toFixed(2)} ${item.unit}`;
+      document.getElementById('restock-unit-label').innerText = item.unit;
+      document.getElementById('restock-qty-input').value = '';
+      document.getElementById('restock-input-overlay').style.display = 'flex';
+    }
+
+    async function proceedRestock() {
+      if (!activeRestockItem) return;
+      const qtyInput = document.getElementById('restock-qty-input').value.trim();
+      const qtyToAdd = parseFloat(qtyInput);
+
+      if (isNaN(qtyToAdd) || qtyToAdd <= 0) {
+        return alert('Please enter a valid positive quantity to add.');
+      }
+
+      const branchId = parseInt(document.getElementById('inv-branch-select').value) || (currentUser ? currentUser.branch_id : 1);
+
+      const res = await fetch(`${API}/inventory/restock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          branch_id: branchId,
+          ingredient_id: activeRestockItem.ingredient_id,
+          quantity_to_add: qtyToAdd
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        closeModal('restock-input-overlay');
+        document.getElementById('restock-success-name').innerText = activeRestockItem.ingredient_name;
+        document.getElementById('restock-success-qty').innerText = `+${qtyToAdd.toFixed(2)} ${activeRestockItem.unit}`;
+        document.getElementById('restock-success-overlay').style.display = 'flex';
+
+        loadInventory();
+        loadAnalytics();
+      } else {
+        alert('Error: ' + data.error);
+      }
+      activeRestockItem = null;
+    }
+
+    // --- LOAD EMPLOYEES ---
+    async function loadEmployees() {
+      const res = await fetch(`${API}/employees`);
+      const employees = await res.json();
+      const empTable = document.getElementById('employee-table-body');
+      empTable.innerHTML = '';
+
+      employees.forEach(e => {
+        empTable.innerHTML += `
+          <tr>
+            <td>#${e.employee_id}</td>
+            <td><strong>${e.name}</strong></td>
+            <td>${e.branch_name}</td>
+            <td>${e.position}</td>
+            <td>৳ ${Number(e.salary).toFixed(2)}</td>
+            <td>${e.phone}</td>
+            <td><span class="badge ${e.employment_status === 'Active' ? 'badge-success' : 'badge-warning'}">${e.employment_status}</span></td>
+          </tr>
+        `;
+      });
+    }
+  </script>
+</body>
+</html>
